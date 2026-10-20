@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agendar gravação — pedrinho film</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Josefin+Sans:wght@300;400&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#0a0a0a;--fg:#f2efe8;--mut:#8d8a84;--ac:#ff4d1c}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:'Josefin Sans',Arial,sans-serif;font-weight:300;padding:6vh 5vw;max-width:980px;margin:auto}
+h1{font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(44px,9vw,96px);text-transform:uppercase;line-height:1}
+h1 b{font-family:'UnifrakturCook',serif;color:var(--ac)}
+h2{font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.12em;text-transform:uppercase;margin:44px 0 16px}
+h2 span{color:var(--ac);margin-right:10px}
+.sub{color:var(--mut);margin-top:12px}
+input,select{width:100%;background:#141414;border:1px solid #ffffff22;color:var(--fg);padding:15px;font:inherit;font-size:16px}
+input:focus,select:focus{outline:0;border-color:var(--ac)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.pk{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:12px}
+.opt{border:1px solid #ffffff22;padding:20px;cursor:pointer;transition:.3s;position:relative}
+.opt:hover{border-color:#ffffff66}
+.opt.sel{border-color:var(--ac);background:#ff4d1c14}
+.opt h3{font-family:'Anton',sans-serif;font-weight:400;font-size:24px;letter-spacing:.06em}
+.opt .pr{font-size:20px;color:var(--ac);margin:6px 0}
+.opt p{color:var(--mut);font-size:14px;line-height:1.6}
+.opt small{display:block;margin-top:8px;color:var(--fg);font-size:12px;letter-spacing:.1em}
+.tog{display:flex;gap:10px;margin-top:16px}
+.tog button{flex:1;padding:13px;background:none;border:1px solid #ffffff22;color:var(--fg);font:inherit;cursor:pointer}
+.tog button.on{border-color:var(--ac);color:var(--ac)}
+.add{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #ffffff22;padding:14px 18px;margin-bottom:8px}
+.add .q{display:flex;align-items:center;gap:10px}
+.add .q button{width:34px;height:34px;background:none;border:1px solid #ffffff44;color:var(--fg);font-size:18px;cursor:pointer}
+.slots{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.slots button{padding:14px 22px;background:none;border:1px solid #ffffff22;color:var(--fg);font:inherit;cursor:pointer}
+.slots button.on{border-color:var(--ac);color:var(--ac)}
+.slots button:disabled{opacity:.3;text-decoration:line-through;cursor:not-allowed}
+.tot{margin-top:44px;border-top:1px solid #ffffff22;padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.tot b{font-family:'Anton',sans-serif;font-weight:400;font-size:44px}
+.go{padding:18px 42px;background:var(--ac);border:0;color:#fff;font:inherit;letter-spacing:.25em;text-transform:uppercase;cursor:pointer}
+.go:disabled{opacity:.4}
+#msg{margin-top:20px;line-height:1.7}
+.hide{display:none}
+</style>
+</head>
+<body>
+<h1><b>P</b> Agendar<br>gravação</h1>
+<p class="sub">Escolha o pacote, a data e o horário. Eu confirmo pelo WhatsApp até 24h antes da gravação.</p>
+
+<h2><span>01</span>Seus dados</h2>
+<div class="row">
+ <input id="nome" placeholder="Nome ou empresa" autocomplete="name">
+ <input id="tel" type="tel" placeholder="Telefone / WhatsApp" autocomplete="tel">
+ <input id="email" type="email" placeholder="E-mail" autocomplete="email">
+</div>
+
+<h2><span>02</span>Pacote</h2>
+<div class="pk" id="pk"></div>
+<div class="tog hide" id="tog"><button data-t="m" class="on">Mensal</button><button data-t="t">Trimestral · 15% off</button></div>
+
+<div id="addBox" class="hide">
+ <h2><span>03</span>Adicionais</h2>
+ <div id="adds"></div>
+</div>
+
+<h2><span>04</span>Data e horário da gravação</h2>
+<input type="date" id="data">
+<div class="slots" id="slots"></div>
+<p class="sub" id="slotHint">Escolha uma data com pelo menos 24h de antecedência.</p>
+
+<div class="tot"><div><span class="sub">Total</span><br><b id="tot">R$ 0</b><div class="sub" id="totSub"></div></div><button class="go" id="go">Solicitar agendamento</button></div>
+<p id="msg"></p>
+
+<script>
+/* ===== CONFIGURAÇÃO ===== */
+var SCRIPT_URL="";            // cole aqui a URL do Apps Script (Implantar > App da Web)
+var WHATS="5541992790667";
+var MIN_HORAS=24;
+var SLOTS=[{id:"manha",l:"08h – 12h"},{id:"tarde",l:"14h – 18h"}];
+var PACOTES=[
+ {id:"START",n:"START",m:1000,t:850,d:"4 reels + 30 fotos + tráfego pago + vídeo de apresentação no 1º mês"},
+ {id:"PRESENCE",n:"PRESENCE",m:2000,t:1700,d:"8 reels + 60 fotos + tráfego pago estratégico + vídeo de apresentação no 1º mês",tag:"Mais escolhido"},
+ {id:"SCALE",n:"SCALE",m:3000,t:2550,d:"12 reels + 90 fotos + tráfego pago avançado + drone grátis + vídeo de apresentação"},
+ {id:"CREATE",n:"CREATE",m:3250,t:2750,d:"15 reels (entrega em até 7 dias) + drone + 1 vídeo institucional + equipamento profissional"},
+ {id:"DAILY",n:"DAILY",m:7850,t:6650,d:"35 reels (entrega em 12 dias) + drone + 5 vídeos institucionais + equipamento de cinema"},
+ {id:"AVULSO",n:"AVULSO",a:550,d:"Diária de captação de até 4h + 1 vídeo à sua escolha + até 15 fotos editadas",tag:"Projeto único · personalizável"}
+];
+var ADICIONAIS=[
+ {id:"video",n:"Vídeo extra",p:180},
+ {id:"fotos",n:"+10 fotos editadas",p:55},
+ {id:"hora",n:"Hora extra de captação",p:125},
+ {id:"drone",n:"Vídeo com drone",p:300},
+ {id:"inst",n:"Vídeo institucional (+1 min)",p:250}
+];
+/* ======================== */
+var S={pk:null,per:"m",add:{},data:"",slot:"",busy:[]};
+var $=function(i){return document.getElementById(i)};
+var R=function(v){return"R$ "+v.toLocaleString("pt-BR")};
+function render(){
+ $("pk").innerHTML=PACOTES.map(function(p){var pr=p.a?R(p.a)+" · projeto":R(S.per=="t"?p.t:p.m)+" / mês";
+  return'<div class="opt'+(S.pk==p.id?" sel":"")+'" data-id="'+p.id+'"><h3>'+p.n+'</h3><div class="pr">'+pr+'</div><p>'+p.d+'</p>'+(p.tag?'<small>'+p.tag+'</small>':'')+'</div>'}).join("");
+ var av=S.pk=="AVULSO";
+ $("tog").classList.toggle("hide",!S.pk||av);
+ $("addBox").classList.toggle("hide",!av);
+ $("adds").innerHTML=ADICIONAIS.map(function(a){var q=S.add[a.id]||0;
+  return'<div class="add"><div>'+a.n+'<br><span class="sub">+ '+R(a.p)+'</span></div><div class="q"><button data-a="'+a.id+'" data-d="-1">−</button><span>'+q+'</span><button data-a="'+a.id+'" data-d="1">+</button></div></div>'}).join("");
+ var t=total();$("tot").textContent=R(t);
+ $("totSub").textContent=!S.pk?"":av?"valor do projeto":(S.per=="t"?"por mês, contrato trimestral":"por mês");
+}
+function total(){var p=PACOTES.filter(function(x){return x.id==S.pk})[0];if(!p)return 0;
+ if(p.a){var s=p.a;ADICIONAIS.forEach(function(a){s+=a.p*(S.add[a.id]||0)});return s}
+ return S.per=="t"?p.t:p.m}
+document.addEventListener("click",function(e){
+ var o=e.target.closest(".opt");if(o){S.pk=o.dataset.id;render();return}
+ var b=e.target.closest("[data-t]");if(b){S.per=b.dataset.t;document.querySelectorAll("#tog button").forEach(function(x){x.classList.toggle("on",x===b)});render();return}
+ var a=e.target.closest("[data-a]");if(a){var k=a.dataset.a;S.add[k]=Math.max(0,(S.add[k]||0)+ +a.dataset.d);render();return}
+ var s=e.target.closest("[data-s]");if(s&&!s.disabled){S.slot=s.dataset.s;drawSlots()}
+});
+var min=new Date(Date.now()+MIN_HORAS*3600e3);
+$("data").min=min.toISOString().slice(0,10);
+function drawSlots(){
+ if(!S.data){$("slots").innerHTML="";return}
+ $("slots").innerHTML=SLOTS.map(function(s){var ocup=S.busy.indexOf(S.data+"|"+s.id)>-1;
+  var d=new Date(S.data+"T"+(s.id=="manha"?"08":"14")+":00:00");var cedo=d<min;
+  return'<button data-s="'+s.id+'"'+(ocup||cedo?" disabled":"")+(S.slot==s.id?' class="on"':"")+'>'+s.l+(ocup?" · ocupado":"")+'</button>'}).join("");
+}
+$("data").onchange=function(){S.data=this.value;S.slot="";drawSlots()};
+if(SCRIPT_URL){fetch(SCRIPT_URL).then(function(r){return r.json()}).then(function(j){S.busy=j.busy||[];drawSlots()}).catch(function(){})}
+$("go").onclick=function(){
+ var nome=$("nome").value.trim(),tel=$("tel").value.trim(),email=$("email").value.trim(),m=$("msg");
+ if(!nome||!tel||!email||!S.pk||!S.data||!S.slot){m.textContent="Preencha seus dados, escolha o pacote, a data e o horário.";return}
+ var p=PACOTES.filter(function(x){return x.id==S.pk})[0],sl=SLOTS.filter(function(x){return x.id==S.slot})[0];
+ var ad=ADICIONAIS.filter(function(a){return S.add[a.id]}).map(function(a){return S.add[a.id]+"x "+a.n});
+ var pl=p.a?"projeto único":(S.per=="t"?"trimestral":"mensal");
+ var dados={nome:nome,tel:tel,email:email,pacote:p.n,plano:pl,adicionais:ad.join(", "),total:total(),data:S.data,slot:S.slot,horario:sl.l};
+ var dt=S.data.split("-").reverse().join("/");
+ var txt="Olá! Quero agendar uma gravação.%0A%0A*Nome:* "+nome+"%0A*Telefone:* "+tel+"%0A*E-mail:* "+email+"%0A*Pacote:* "+p.n+" ("+pl+")"+(ad.length?"%0A*Adicionais:* "+ad.join(", "):"")+"%0A*Total:* "+R(total())+"%0A*Data:* "+dt+" · "+sl.l;
+ var abrir=function(){window.open("https://wa.me/"+WHATS+"?text="+txt,"_blank");m.textContent="Pedido enviado! Falta só enviar a mensagem no WhatsApp. Você receberá a confirmação até 24h antes da gravação."};
+ $("go").disabled=true;
+ if(!SCRIPT_URL){abrir();$("go").disabled=false;return}
+ fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(dados)}).then(function(r){return r.json()}).then(function(j){
+  if(j.ok)abrir();else{m.textContent=j.erro||"Esse horário acabou de ser reservado. Escolha outro.";S.busy.push(S.data+"|"+S.slot);S.slot="";drawSlots()}
+  $("go").disabled=false}).catch(function(){m.textContent="Não consegui enviar agora. Tente de novo ou chame no WhatsApp.";$("go").disabled=false});
+};
+render();
+</script>
+</body>
+</html>
